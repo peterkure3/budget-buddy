@@ -2,56 +2,33 @@ name: Flutter CI
 
 on:
   push:
-    branches: [ master ]
-
-env:
-  JAVA_VERSION: '17'
-  FLUTTER_CHANNEL: 'stable'
-  FLUTTER_VERSION: '3.19.0'  # Hardcoded version instead of trying to extract it
+    branches:
+      - main   # Change to your default branch if necessary
+  pull_request:
+    branches:
+      - main   # Change to your default branch if necessary
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: ${{ env.JAVA_VERSION }}
-          cache: 'gradle'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: ${{ env.FLUTTER_CHANNEL }}
-          cache: true
+          flutter-version: stable
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build APK (Release)
         run: flutter build apk --release
 
-      - name: Generate Build Number
-        id: buildnumber
-        run: echo "BUILD_NUMBER=$(git rev-list --count HEAD)" >> $GITHUB_ENV
-
-      - name: Rename artifact
-        run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/app-${{ env.BUILD_NUMBER }}.apk
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v3
         with:
-          files: build/app/outputs/flutter-apk/app-${{ env.BUILD_NUMBER }}.apk
-          tag_name: v1.0.${{ env.BUILD_NUMBER }}
-          name: Release v1.0.${{ env.BUILD_NUMBER }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
