@@ -9,7 +9,7 @@ on:
 env:
   JAVA_VERSION: '17'
   FLUTTER_CHANNEL: 'stable'
-  FLUTTER_VERSION: '3.10.5'  # Explicitly set Flutter version
+  FLUTTER_VERSION: '3.24.4'  # Explicitly set Flutter version
 
 jobs:
   build:
