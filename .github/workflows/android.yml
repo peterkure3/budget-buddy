@@ -8,16 +8,21 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
 
+    - name: Extract Flutter Version from pubspec.yaml
+      id: flutter_version
+      run: |
+        FLUTTER_VERSION=$(grep 'sdk:' pubspec.yaml | sed -E 's/[^0-9.]*([0-9.]+).*/\1/')
+        echo "FLUTTER_VERSION=${FLUTTER_VERSION}" >> $GITHUB_ENV
+
     - name: Set up Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: 'stable'
+        flutter-version: ${{ env.FLUTTER_VERSION }}
 
     - name: Run Flutter pub get
       run: flutter pub get
