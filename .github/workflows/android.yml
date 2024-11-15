@@ -2,24 +2,37 @@ name: Flutter CI
 
 on:
   push:
-    branches:
-      - main   # Change to your default branch if necessary
-  pull_request:
-    branches:
-      - main   # Change to your default branch if necessary
+    branches: [ master ]
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '17'
+  FLUTTER_CHANNEL: 'stable'
+  FLUTTER_VERSION: '3.10.5'  # Explicitly set Flutter version
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history to ensure proper version resolution
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}  # Use the explicit version
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
 
       - name: Install dependencies
         run: flutter pub get
@@ -27,8 +40,21 @@ jobs:
       - name: Build APK (Release)
         run: flutter build apk --release
 
-      - name: Upload APK as artifact
-        uses: actions/upload-artifact@v3
+      - name: Generate Build Number
+        id: buildnumber
+        run: echo "BUILD_NUMBER=$(git rev-list --count HEAD)" >> $GITHUB_ENV
+
+      - name: Rename APK with build number
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/app-${{ env.BUILD_NUMBER }}.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: app-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          files: build/app/outputs/flutter-apk/app-${{ env.BUILD_NUMBER }}.apk
+          tag_name: v1.0.${{ env.BUILD_NUMBER }}
+          name: Release v1.0.${{ env.BUILD_NUMBER }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
