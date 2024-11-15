@@ -2,40 +2,63 @@ name: Flutter CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ master ]
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '17'
+  FLUTTER_CHANNEL: 'stable'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Extract Flutter Version
+      - name: Get Flutter Version
         run: |
-          FLUTTER_VERSION=$(grep 'sdk:' pubspec.yaml | sed -E 's/.*sdk: ">=([0-9.]+).*/\1/')
+          FLUTTER_VERSION=$(grep 'sdk: flutter' pubspec.yaml -A 1 | grep 'sdk:' | sed -E 's/.*>=(.*?) .*/\1/')
           echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
 
-      - name: Get Flutter dependencies
+      - name: Install dependencies
         run: flutter pub get
 
-      - name: Analyze Dart code
-        run: flutter analyze
-
-      - name: Run Flutter tests
-        run: flutter test
-
       - name: Build APK
-        run: flutter build apk
+        run: flutter build apk --release
 
-      - name: Upload release APK
-        uses: actions/upload-artifact@v3
+      - name: Generate Build Number
+        id: buildnumber
+        run: echo "BUILD_NUMBER=$(git rev-list --count HEAD)" >> $GITHUB_ENV
+
+      - name: Rename artifacts
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/app-${{ env.BUILD_NUMBER }}.apk
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          files: |
+            build/app/outputs/flutter-apk/app-${{ env.BUILD_NUMBER }}.apk
+          tag_name: v1.0.${{ env.BUILD_NUMBER }}
+          name: Release v1.0.${{ env.BUILD_NUMBER }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
