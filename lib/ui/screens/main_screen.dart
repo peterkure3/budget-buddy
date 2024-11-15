@@ -14,7 +14,8 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  
+  late PageController _pageController;
+
   final List<Widget> _screens = [
     OverviewScreen(),
     MyHomePage(),
@@ -23,16 +24,49 @@ class _MainScreenState extends State<MainScreen> {
     SettingsScreen(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
   void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+      // Instantly jump to the page on tap
+      _pageController.jumpToPage(index);
+    });
+  }
+
+  void _onPageChanged(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
+  Future<void> _animateToPage(int page) async {
+    await _pageController.animateToPage(
+      page,
+      duration: const Duration(milliseconds: 100), // Faster transition duration
+      curve: Curves.easeInOut, // Smooth acceleration and deceleration
+    );
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_selectedIndex],
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: _onPageChanged,
+        children: _screens,
+        physics: const ClampingScrollPhysics(), // Faster swiping physics
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
@@ -62,4 +96,4 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
-} 
+}
