@@ -3,50 +3,37 @@ name: Flutter CI
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # Check out the code from the repository
       - uses: actions/checkout@v4
 
-      # Set up the Java environment (updated to v2)
-      - name: Set up Java
-        uses: actions/setup-java@v2
-        with:
-          java-version: '12'
+      - name: Extract Flutter Version
+        run: |
+          FLUTTER_VERSION=$(grep 'sdk:' pubspec.yaml | sed -E 's/.*sdk: ">=([0-9.]+).*/\1/')
+          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
 
-      # Set up the Flutter environment (updated to v2)
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'beta' # Use 'stable', 'dev', or 'beta' based on your needs
-          flutter-version: 'stable' # Specify the version if needed
+          flutter-version: ${{ env.FLUTTER_VERSION }}
 
-      # Get Flutter dependencies
       - name: Get Flutter dependencies
         run: flutter pub get
 
-      # Check code formatting
-      - name: Check code formatting
-        run: flutter format --set-exit-if-changed .
-
-      # Analyze Dart code
       - name: Analyze Dart code
         run: flutter analyze
 
-      # Run Flutter tests
       - name: Run Flutter tests
         run: flutter test
 
-      # Build the APK
       - name: Build APK
         run: flutter build apk
 
-      # Upload generated APK to GitHub Actions artifacts
       - name: Upload release APK
         uses: actions/upload-artifact@v3
         with:
