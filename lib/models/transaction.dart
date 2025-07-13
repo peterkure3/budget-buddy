@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 class Transaction {
   final String id;
   final String description;
@@ -20,6 +18,7 @@ class Transaction {
         'description': description,
         'amount': amount,
         'date': date.toIso8601String(),
+        'categoryId': categoryId,
       };
 
   factory Transaction.fromJson(Map<String, dynamic> json) => Transaction(
@@ -27,5 +26,6 @@ class Transaction {
         description: json['description'],
         amount: json['amount'],
         date: DateTime.parse(json['date']),
+        categoryId: json['categoryId'],
       );
-} 
+}
