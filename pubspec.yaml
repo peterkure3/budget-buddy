@@ -44,15 +44,6 @@ dependencies:
   # Use with the ChangeNotifierProvider class for state management.
   provider: ^6.1.1
 
-  # The following adds the intl package to your application.
-  # Use with the intl package for date formatting.
-  intl: ^0.19.0
-
-  # The following adds the flutter_localizations package to your application.
-  # Use with the flutter_localizations package for localization support.
-  flutter_localizations:
-    sdk: flutter
-
   # The following adds the fl_chart package to your application.
   # Use with the fl_chart package for graphs.
   fl_chart: ^0.69.0

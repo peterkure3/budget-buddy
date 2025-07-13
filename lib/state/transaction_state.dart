@@ -17,7 +17,6 @@ class TransactionState extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
-
   List<Transaction> get transactions => _transactions;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -40,23 +39,40 @@ class TransactionState extends ChangeNotifier {
   Future<void> addTransaction(Transaction transaction) async {
     _transactions.add(transaction);
     await _service.saveTransactions(_transactions);
-    
-    if (_budgetState.budget != null) {
-      final updatedBudget = Budget(
-        income: _budgetState.budget!.income,
-        balance: _budgetState.budget!.balance - transaction.amount,
-        lastUpdated: DateTime.now(),
-        categories: _budgetState.budget!.categories,
-      );
-      await _budgetState.updateBudget(updatedBudget);
+
+    // Update category spent and budget balance
+    if (_budgetState.budget != null && transaction.categoryId != null) {
+      final categories = _budgetState.budget!.categories;
+      final idx = categories.indexWhere((c) => c.id == transaction.categoryId);
+      if (idx != -1) {
+        final cat = categories[idx];
+        final newSpent = cat.spent + transaction.amount.abs();
+        _budgetState.updateCategorySpent(cat.id, newSpent);
+        _budgetState.recalculateBalance();
+      }
     }
-    
     notifyListeners();
   }
 
   Future<void> removeTransaction(String id) async {
+    final transaction = _transactions.firstWhere(
+      (t) => t.id == id,
+      orElse: () => null as Transaction,
+    );
     _transactions.removeWhere((t) => t.id == id);
     await _service.saveTransactions(_transactions);
+
+    // Update category spent and budget balance
+    if (_budgetState.budget != null && transaction.categoryId != null) {
+      final categories = _budgetState.budget!.categories;
+      final idx = categories.indexWhere((c) => c.id == transaction.categoryId);
+      if (idx != -1) {
+        final cat = categories[idx];
+        final newSpent = (cat.spent - transaction.amount.abs()).clamp(0, double.infinity) as double;
+        _budgetState.updateCategorySpent(cat.id, newSpent);
+        _budgetState.recalculateBalance();
+      }
+    }
     notifyListeners();
   }
 }

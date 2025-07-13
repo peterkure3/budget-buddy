@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../state/budget_state.dart';
-import '../../models/budget_category.dart';
 import 'budget_setup_screen.dart';
 
 class BudgetScreen extends StatelessWidget {
+  const BudgetScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     final budgetState = Provider.of<BudgetState>(context);
@@ -46,12 +47,12 @@ class BudgetScreen extends StatelessWidget {
           ),
           Divider(),
           ...budgetState.budget!.categories.map((category) => ListTile(
-            title: Text(category.name),
-            trailing: Text(
-              '${budgetState.currency}${category.amount.toStringAsFixed(2)}',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          )),
+                title: Text(category.name),
+                trailing: Text(
+                  '${budgetState.currency}${category.allocation.toStringAsFixed(2)}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              )),
           Divider(),
           ListTile(
             title: Text('Remaining Balance'),

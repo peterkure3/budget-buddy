@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../state/settings_state.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz;
 import '../../services/notification_service.dart';
+import 'package:flutter/cupertino.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -30,7 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)!.resetOnboarding),
+          content: Text('Reset onboarding'),
         ),
       );
     }
@@ -69,15 +66,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  List<Widget> _buildSettingsList(BuildContext context, SettingsState settings) {
-    final l10n = AppLocalizations.of(context)!;
-    
+  List<Widget> _buildSettingsList(
+      BuildContext context, SettingsState settings) {
     final allSettings = [
       // Appearance Section
       const _SectionHeader(title: 'Appearance'),
       ListTile(
         leading: const Icon(Icons.palette),
-        title: Text(l10n.theme),
+        title: Text('Theme'),
         subtitle: const Text('Change app appearance'),
         trailing: DropdownButton<ThemeMode>(
           value: settings.themeMode,
@@ -89,15 +85,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           items: [
             DropdownMenuItem(
               value: ThemeMode.system,
-              child: Text(l10n.system),
+              child: Text('System'),
             ),
             DropdownMenuItem(
               value: ThemeMode.light,
-              child: Text(l10n.light),
+              child: Text('Light'),
             ),
             DropdownMenuItem(
               value: ThemeMode.dark,
-              child: Text(l10n.dark),
+              child: Text('Dark'),
             ),
           ],
         ),
@@ -160,66 +156,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       // Notifications Section
       const _SectionHeader(title: 'Notifications'),
-      SwitchListTile(
-        secondary: const Icon(Icons.notifications),
-        title: const Text('Daily Reminder'),
-        subtitle: Text('Get daily reminders at ${settings.dailyReminderTime ?? "8:00 PM"}'),
-        value: settings.dailyReminder,
-        onChanged: (value) async {
-          if (value) {
-            final TimeOfDay? time = await showTimePicker(
-              context: context,
-              initialTime: TimeOfDay.now(),
-            );
-            if (time != null && context.mounted) {
-              settings.setDailyReminder(true, hour: time.hour, minute: time.minute);
-            }
-          } else {
-            settings.setDailyReminder(false);
+      ListTile(
+        leading: const Icon(Icons.access_time),
+        title: const Text('Daily Reminder Time'),
+        subtitle: Text(settings.dailyReminderTime ?? '8:00 PM'),
+        onTap: () async {
+          TimeOfDay? pickedTime = await showModalBottomSheet<TimeOfDay>(
+            context: context,
+            builder: (context) {
+              TimeOfDay tempTime = settings.dailyReminderTime != null
+                  ? _parseTimeOfDay(settings.dailyReminderTime!)
+                  : const TimeOfDay(hour: 20, minute: 0);
+              return SizedBox(
+                height: 250,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: CupertinoDatePicker(
+                        mode: CupertinoDatePickerMode.time,
+                        initialDateTime: DateTime(
+                          2020, 1, 1, tempTime.hour, tempTime.minute),
+                        use24hFormat: false,
+                        onDateTimeChanged: (DateTime newDateTime) {
+                          tempTime = TimeOfDay(
+                            hour: newDateTime.hour,
+                            minute: newDateTime.minute,
+                          );
+                        },
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, tempTime),
+                          child: const Text('Set'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+          if (pickedTime != null && context.mounted) {
+            await settings.setDailyReminderTime(pickedTime.hour, pickedTime.minute);
+            setState(() {}); // Update the subtitle immediately
           }
         },
       ),
-      if (settings.dailyReminder)
-        ListTile(
-          leading: const Icon(Icons.message),
-          title: const Text('Reminder Message'),
-          subtitle: Text(settings.dailyReminderMessage ?? 'Default reminder message'),
-          onTap: () async {
-            final controller = TextEditingController(
-              text: settings.dailyReminderMessage,
-            );
-            await showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Set Reminder Message'),
-                content: TextField(
-                  controller: controller,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter reminder message',
-                  ),
-                  maxLines: 2,
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      settings.setDailyReminderMessage(controller.text);
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Save'),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
       SwitchListTile(
         secondary: const Icon(Icons.warning),
         title: const Text('Budget Alerts'),
-        subtitle: Text('Get notified when balance falls below ${settings.budgetAlertThreshold ?? "20"}%'),
+        subtitle: Text(
+            'Get notified when balance falls below ${settings.budgetAlertThreshold ?? "20"}%'),
         value: settings.budgetAlerts,
         onChanged: (value) async {
           if (value) {
@@ -246,7 +240,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   TextButton(
                     onPressed: () {
                       final threshold = double.tryParse(controller.text);
-                      if (threshold != null && threshold > 0 && threshold <= 100) {
+                      if (threshold != null &&
+                          threshold > 0 &&
+                          threshold <= 100) {
                         settings.setBudgetAlerts(true, threshold: threshold);
                         Navigator.pop(context);
                       }
@@ -265,7 +261,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ListTile(
           leading: const Icon(Icons.message),
           title: const Text('Alert Message'),
-          subtitle: Text(settings.budgetAlertMessage ?? 'Default alert message'),
+          subtitle:
+              Text(settings.budgetAlertMessage ?? 'Default alert message'),
           onTap: () async {
             final controller = TextEditingController(
               text: settings.budgetAlertMessage,
@@ -301,9 +298,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ListTile(
         leading: const Icon(Icons.notification_important),
         title: const Text('Test Notifications'),
-        subtitle: const Text('Send a test notification'),
+        subtitle: Text('Send a test notification${settings.lastTestNotificationTime != null ? '\nLast test: ' + settings.lastTestNotificationTime! : ''}'),
         onTap: () {
           NotificationService().showTestNotification();
+          settings.setLastTestNotificationTime(DateTime.now().toString());
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Test notification sent')),
           );
@@ -314,7 +312,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       const _SectionHeader(title: 'Language & Region'),
       ListTile(
         leading: const Icon(Icons.language),
-        title: Text(l10n.language),
+        title: Text('Language'),
         subtitle: const Text('Change app language'),
         trailing: DropdownButton<String>(
           value: settings.languageCode,
@@ -337,12 +335,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       ListTile(
         leading: const Icon(Icons.attach_money),
-        title: Text(l10n.currency),
+        title: Text('Currency'),
         subtitle: const Text('Change currency symbol'),
         trailing: DropdownButton<String>(
           value: settings.currencySymbol,
-          onChanged: (String? newCurrency) {
-            if (newCurrency != null) {
+          onChanged: (String? newCurrency) async {
+            if (newCurrency == 'other') {
+              final controller = TextEditingController();
+              final result = await showDialog<String>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Enter Custom Currency Symbol'),
+                  content: TextField(
+                    controller: controller,
+                    decoration: const InputDecoration(hintText: 'e.g. ₹, ¥, ₩'),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, controller.text),
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+              );
+              if (result != null && result.isNotEmpty) {
+                settings.setCurrency(result);
+              }
+            } else if (newCurrency != null) {
               settings.setCurrency(newCurrency);
             }
           },
@@ -363,6 +386,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: 'UGX',
               child: Text('UGX'),
             ),
+            DropdownMenuItem(
+              value: 'other',
+              child: Text('Other...'),
+            ),
           ],
         ),
       ),
@@ -377,7 +404,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       ListTile(
         leading: const Icon(Icons.refresh),
-        title: Text(l10n.resetOnboarding),
+        title: Text('Reset Onboarding'),
         subtitle: const Text('Reset app introduction'),
         onTap: () => _resetOnboarding(context),
       ),
@@ -386,12 +413,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       const _SectionHeader(title: 'About'),
       ListTile(
         leading: const Icon(Icons.info),
-        title: Text(l10n.about),
+        title: Text('About'),
         subtitle: const Text('App information'),
         onTap: () {
           showAboutDialog(
             context: context,
-            applicationName: l10n.appTitle,
+            applicationName: 'Budget Buddy',
             applicationVersion: '1.0.0',
             applicationLegalese: '© 2024 Budget Buddy',
           );
@@ -405,16 +432,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return allSettings.where((widget) {
       if (widget is ListTile) {
-        final title = widget.title is Text ? (widget.title as Text).data ?? '' : '';
-        final subtitle = widget.subtitle is Text ? (widget.subtitle as Text).data ?? '' : '';
+        final title =
+            widget.title is Text ? (widget.title as Text).data ?? '' : '';
+        final subtitle =
+            widget.subtitle is Text ? (widget.subtitle as Text).data ?? '' : '';
         return title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-               subtitle.toLowerCase().contains(_searchQuery.toLowerCase());
+            subtitle.toLowerCase().contains(_searchQuery.toLowerCase());
       }
       return false;
     }).toList();
   }
 
- @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -442,7 +471,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
                 autofocus: true,
               )
-            : Text(AppLocalizations.of(context)!.settings),
+            : Text('Settings'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           if (!_showSearch)
@@ -459,7 +488,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: Consumer<SettingsState>(
         builder: (context, settings, child) {
           final settingsList = _buildSettingsList(context, settings);
-          
+
           return settingsList.isEmpty
               ? Center(
                   child: Column(
@@ -547,9 +576,7 @@ class _ColorChoice extends StatelessWidget {
               ),
           ],
         ),
-        child: isSelected
-            ? const Icon(Icons.check, color: Colors.white)
-            : null,
+        child: isSelected ? const Icon(Icons.check, color: Colors.white) : null,
       ),
     );
   }
@@ -587,4 +614,19 @@ class _IconChoice extends StatelessWidget {
       ),
     );
   }
-} 
+}
+
+// Helper function for parsing time string to TimeOfDay
+TimeOfDay _parseTimeOfDay(String timeString) {
+  final format = RegExp(r'^(\d{1,2}):(\d{2}) ?([AP]M)?', caseSensitive: false);
+  final match = format.firstMatch(timeString);
+  if (match != null) {
+    int hour = int.parse(match.group(1)!);
+    int minute = int.parse(match.group(2)!);
+    final period = match.group(3)?.toUpperCase();
+    if (period == 'PM' && hour < 12) hour += 12;
+    if (period == 'AM' && hour == 12) hour = 0;
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+  return const TimeOfDay(hour: 20, minute: 0);
+}

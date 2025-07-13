@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'onboarding_screen.dart';
-import 'home_screen.dart';
 import 'main_screen.dart';
 
 class OnboardingCheck extends StatefulWidget {
@@ -45,4 +44,4 @@ class _OnboardingCheckState extends State<OnboardingCheck> {
       ),
     );
   }
-} 
+}

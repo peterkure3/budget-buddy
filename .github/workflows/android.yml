@@ -26,12 +26,10 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'gradle'
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}  # Use the explicit version
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
@@ -52,10 +50,10 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: build/app/outputs/flutter-apk/app-${{ env.BUILD_NUMBER }}.apk
-          tag_name: v1.0.${{ env.BUILD_NUMBER }}
-          name: Release v1.0.${{ env.BUILD_NUMBER }}
+          files: build/app/outputs/flutter-apk/budget-buddy-${{ env.BUILD_NUMBER }}.apk
+          tag_name: v1.0.${{ env.BUILD_NUMBER }}-beta
+          name: Release v1.0.${{ env.BUILD_NUMBER }}-beta
           draft: false
-          prerelease: false
+          prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

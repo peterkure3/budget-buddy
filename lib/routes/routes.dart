@@ -12,4 +12,4 @@ class AppRoutes {
       main: (context) => const MainScreen(),
     };
   }
-} 
+}

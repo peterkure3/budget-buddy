@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'main_screen.dart';
+import 'dart:io';
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({Key? key}) : super(key: key);
+  const OnboardingScreen({super.key});
 
   @override
   _OnboardingScreenState createState() => _OnboardingScreenState();
@@ -35,6 +36,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('showOnboarding', false);
+    Process.run('pieces-cli', ['add', '--text', 'User completed onboarding']);
     if (mounted) {
       Navigator.pushReplacement(
         context,
@@ -106,7 +108,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         );
                       }
                     },
-                    child: Text(_currentPage == _numPages - 1 ? "Get Started" : "Next"),
+                    child: Text(
+                        _currentPage == _numPages - 1 ? "Get Started" : "Next"),
                   ),
                 ],
               ),
@@ -124,11 +127,11 @@ class OnboardingPage extends StatelessWidget {
   final IconData icon;
 
   const OnboardingPage({
-    Key? key,
+    super.key,
     required this.title,
     required this.text,
     required this.icon,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -148,9 +151,9 @@ class OnboardingPage extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              fontSize: 24, 
+              fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: colorScheme.onBackground,
+              color: colorScheme.onSurface,
             ),
             textAlign: TextAlign.center,
           ),
@@ -160,7 +163,7 @@ class OnboardingPage extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
-              color: colorScheme.onBackground.withOpacity(0.8),
+              color: colorScheme.onSurface.withOpacity(0.8),
             ),
           ),
         ],

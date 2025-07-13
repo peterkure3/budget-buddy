@@ -3,7 +3,8 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
 class NotificationService {
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
 
   NotificationService() {
     initializeNotifications();
@@ -22,14 +23,16 @@ class NotificationService {
       requestSoundPermission: true,
     );
 
-    final InitializationSettings initializationSettings = InitializationSettings(
+    final InitializationSettings initializationSettings =
+        InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsDarwin,
     );
 
     await _notifications.initialize(
       initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse notificationResponse) async {
+      onDidReceiveNotificationResponse:
+          (NotificationResponse notificationResponse) async {
         // Handle notification tapped logic here
       },
     );
@@ -40,14 +43,19 @@ class NotificationService {
 
   Future<void> _requestPermissions() async {
     final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-        _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        _notifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidImplementation != null) {
       await androidImplementation.requestNotificationsPermission();
     }
   }
 
-  Future<void> scheduleDailyReminder(bool enabled, {required int hour, required int minute, required String title, required String body}) async {
+  Future<void> scheduleDailyReminder(bool enabled,
+      {required int hour,
+      required int minute,
+      required String title,
+      required String body}) async {
     if (!enabled) {
       await _notifications.cancel(0); // Cancel reminder if disabled
       return;
@@ -69,13 +77,18 @@ class NotificationService {
           priority: Priority.high,
         ),
       ),
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
   }
 
-  Future<void> setBudgetAlert({required bool enabled, required double threshold, required String title, required String body}) async {
+  Future<void> setBudgetAlert(
+      {required bool enabled,
+      required double threshold,
+      required String title,
+      required String body}) async {
     if (!enabled) {
       await _notifications.cancel(1); // Cancel budget alert if disabled
       return;
@@ -98,7 +111,8 @@ class NotificationService {
   }
 
   Future<void> showTestNotification() async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
       'test_channel',
       'Test Notifications',
       channelDescription: 'Channel for test notifications',
@@ -107,7 +121,8 @@ class NotificationService {
       ticker: 'ticker',
     );
 
-    const NotificationDetails notificationDetails = NotificationDetails(android: androidDetails);
+    const NotificationDetails notificationDetails =
+        NotificationDetails(android: androidDetails);
 
     await _notifications.show(
       0,
@@ -119,7 +134,8 @@ class NotificationService {
 
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-    tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    tz.TZDateTime scheduledDate =
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }

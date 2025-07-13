@@ -16,7 +16,6 @@ class SettingsState extends ChangeNotifier {
   String _currencySymbol = '\$';
   String _themeIcon = 'light_mode';
   Color _themeColor = Colors.green;
-  bool _dailyReminder = false;
   bool _budgetAlerts = false;
 
   String? _dailyReminderTime;
@@ -24,14 +23,15 @@ class SettingsState extends ChangeNotifier {
   double? _budgetAlertThreshold;
   String? _budgetAlertMessage;
 
-  final NotificationService _notificationService = NotificationService();
+  String? _lastTestNotificationTime;
+
+  final NotificationService notificationService;
 
   ThemeMode get themeMode => _themeMode;
   String get languageCode => _languageCode;
   String get currencySymbol => _currencySymbol;
   String get themeIcon => _themeIcon;
   Color get themeColor => _themeColor;
-  bool get dailyReminder => _dailyReminder;
   bool get budgetAlerts => _budgetAlerts;
 
   String? get dailyReminderTime => _dailyReminderTime;
@@ -39,7 +39,9 @@ class SettingsState extends ChangeNotifier {
   double? get budgetAlertThreshold => _budgetAlertThreshold;
   String? get budgetAlertMessage => _budgetAlertMessage;
 
-  SettingsState() {
+  String? get lastTestNotificationTime => _lastTestNotificationTime;
+
+  SettingsState(this.notificationService) {
     _loadSettings();
   }
 
@@ -50,18 +52,35 @@ class SettingsState extends ChangeNotifier {
     _currencySymbol = prefs.getString(_currencyKey) ?? '\$';
     _themeIcon = prefs.getString(_themeIconKey) ?? 'light_mode';
     _themeColor = Color(prefs.getInt(_themeColorKey) ?? Colors.green.value);
-    _dailyReminder = prefs.getBool(_dailyReminderKey) ?? false;
     _budgetAlerts = prefs.getBool(_budgetAlertsKey) ?? false;
+    _dailyReminderTime = prefs.getString('daily_reminder_time');
+    _dailyReminderMessage = prefs.getString('daily_reminder_message');
+    _budgetAlertThreshold = prefs.getDouble('budget_alert_threshold');
+    _budgetAlertMessage = prefs.getString('budget_alert_message');
+    _lastTestNotificationTime = prefs.getString('last_test_notification_time');
+    // Always schedule daily reminder if time is set
+    if (_dailyReminderTime != null) {
+      final timeParts = _dailyReminderTime!.split(':');
+      final hour = int.parse(timeParts[0]);
+      final minute = int.parse(timeParts[1]);
+      await notificationService.scheduleDailyReminder(
+        true,
+        hour: hour,
+        minute: minute,
+        title: 'Daily Reminder',
+        body: _dailyReminderMessage ?? "Don't forget to track your expenses for today!",
+      );
+    }
     notifyListeners();
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
     if (_themeMode == mode) return; // Prevent unnecessary updates
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_themeKey, mode.index);
     _themeMode = mode;
-    
+
     // Update theme icon based on mode
     String newIcon;
     switch (mode) {
@@ -75,12 +94,12 @@ class SettingsState extends ChangeNotifier {
         newIcon = 'auto_awesome';
         break;
     }
-    
+
     if (_themeIcon != newIcon) {
       await prefs.setString(_themeIconKey, newIcon);
       _themeIcon = newIcon;
     }
-    
+
     notifyListeners();
   }
 
@@ -100,11 +119,11 @@ class SettingsState extends ChangeNotifier {
 
   Future<void> setThemeIcon(String icon) async {
     if (_themeIcon == icon) return; // Prevent unnecessary updates
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_themeIconKey, icon);
     _themeIcon = icon;
-    
+
     // Update theme mode based on icon
     switch (icon) {
       case 'light_mode':
@@ -117,7 +136,7 @@ class SettingsState extends ChangeNotifier {
         await setThemeMode(ThemeMode.system);
         break;
     }
-    
+
     notifyListeners();
   }
 
@@ -128,23 +147,17 @@ class SettingsState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setDailyReminder(bool value, {int? hour, int? minute}) async {
+  Future<void> setDailyReminderTime(int hour, int minute) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_dailyReminderKey, value);
-    _dailyReminder = value;
-    
-    if (hour != null && minute != null) {
-      final timeString = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
-      await prefs.setString('daily_reminder_time', timeString);
-      _dailyReminderTime = timeString;
-    }
-    
-    await _notificationService.scheduleDailyReminder(
-      value,
-      hour: hour ?? 20,
-      minute: minute ?? 0,
+    final timeString = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+    await prefs.setString('daily_reminder_time', timeString);
+    _dailyReminderTime = timeString;
+    await notificationService.scheduleDailyReminder(
+      true,
+      hour: hour,
+      minute: minute,
       title: 'Daily Reminder',
-      body: _dailyReminderMessage ?? 'Don\'t forget to track your expenses for today!',
+      body: _dailyReminderMessage ?? "Don't forget to track your expenses for today!",
     );
     notifyListeners();
   }
@@ -153,8 +166,18 @@ class SettingsState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('daily_reminder_message', message);
     _dailyReminderMessage = message;
-    if (_dailyReminder) {
-      await setDailyReminder(true); // Reschedule with new message
+    // Reschedule with new message if time is set
+    if (_dailyReminderTime != null) {
+      final timeParts = _dailyReminderTime!.split(':');
+      final hour = int.parse(timeParts[0]);
+      final minute = int.parse(timeParts[1]);
+      await notificationService.scheduleDailyReminder(
+        true,
+        hour: hour,
+        minute: minute,
+        title: 'Daily Reminder',
+        body: message,
+      );
     }
     notifyListeners();
   }
@@ -163,18 +186,18 @@ class SettingsState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_budgetAlertsKey, value);
     _budgetAlerts = value;
-    
+
     if (threshold != null) {
       await prefs.setDouble('budget_alert_threshold', threshold);
       _budgetAlertThreshold = threshold;
     }
-    
-    await _notificationService.setBudgetAlert(
-    enabled: value,
-    threshold: threshold ?? 20,
-    title: 'Budget Alert',
-    body: _budgetAlertMessage ?? 'Your balance is getting low!',
-  );
+
+    await notificationService.setBudgetAlert(
+      enabled: value,
+      threshold: threshold ?? 20,
+      title: 'Budget Alert',
+      body: _budgetAlertMessage ?? 'Your balance is getting low!',
+    );
 
     notifyListeners();
   }
@@ -188,4 +211,11 @@ class SettingsState extends ChangeNotifier {
     }
     notifyListeners();
   }
-} 
+
+  Future<void> setLastTestNotificationTime(String time) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('last_test_notification_time', time);
+    _lastTestNotificationTime = time;
+    notifyListeners();
+  }
+}

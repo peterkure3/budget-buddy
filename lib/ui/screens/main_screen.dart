@@ -64,8 +64,8 @@ class _MainScreenState extends State<MainScreen> {
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
-        children: _screens,
-        physics: const ClampingScrollPhysics(), // Faster swiping physics
+        physics: const ClampingScrollPhysics(),
+        children: _screens, // Faster swiping physics
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,

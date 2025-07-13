@@ -3,9 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../state/transaction_state.dart';
 import '../../models/transaction.dart';
-import 'package:intl/intl.dart';
 import '../../state/settings_state.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class StatisticsScreen extends StatelessWidget {
   const StatisticsScreen({super.key});
@@ -13,11 +11,10 @@ class StatisticsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currencySymbol = context.watch<SettingsState>().currencySymbol;
-    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.statistics),
+        title: Text('Statistics'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Consumer<TransactionState>(
@@ -48,22 +45,28 @@ class StatisticsScreen extends StatelessWidget {
             );
           }
 
-          // Calculate statistics
-          double totalSpent = transactions.fold(
-              0, (sum, transaction) => sum + transaction.amount.abs());
-          
-          final firstDate = transactions.map((t) => t.date).reduce((a, b) => a.isBefore(b) ? a : b);
-          final lastDate = transactions.map((t) => t.date).reduce((a, b) => a.isAfter(b) ? a : b);
-          final daysDifference = lastDate.difference(firstDate).inDays + 1;
-          final dailyAverage = totalSpent / daysDifference;
+          final expenses = transactions.where((t) => t.amount < 0).toList();
 
-          final maxTransaction = transactions.reduce(
-              (a, b) => a.amount.abs() > b.amount.abs() ? a : b);
-          final minTransaction = transactions.reduce(
-              (a, b) => a.amount.abs() < b.amount.abs() ? a : b);
+          double totalSpent = expenses.fold(0.0, (sum, t) => sum + t.amount.abs());
+
+          final firstDate = expenses.isNotEmpty
+              ? expenses.map((t) => t.date).reduce((a, b) => a.isBefore(b) ? a : b)
+              : DateTime.now();
+          final lastDate = expenses.isNotEmpty
+              ? expenses.map((t) => t.date).reduce((a, b) => a.isAfter(b) ? a : b)
+              : DateTime.now();
+          final daysDifference = expenses.isNotEmpty ? lastDate.difference(firstDate).inDays + 1 : 1;
+          final dailyAverage = daysDifference > 0 ? (totalSpent / daysDifference).toDouble() : 0.0;
+
+          final maxTransaction = expenses.isNotEmpty
+              ? expenses.reduce((a, b) => a.amount.abs() > b.amount.abs() ? a : b)
+              : null;
+          final minTransaction = expenses.isNotEmpty
+              ? expenses.reduce((a, b) => a.amount.abs() < b.amount.abs() ? a : b)
+              : null;
 
           final Map<DateTime, double> dailyTotals = {};
-          for (var transaction in transactions) {
+          for (var transaction in expenses) {
             final date = DateTime(
               transaction.date.year,
               transaction.date.month,
@@ -82,11 +85,15 @@ class StatisticsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildQuickStats(context, dailyAverage, totalSpent, currencySymbol),
+                _buildQuickStats(
+                    context, dailyAverage, totalSpent, currencySymbol),
                 const SizedBox(height: 24),
-                _buildSpendingHighlights(context, maxTransaction, minTransaction, currencySymbol),
+                if (maxTransaction != null && minTransaction != null)
+                  _buildSpendingHighlights(
+                      context, maxTransaction, minTransaction, currencySymbol),
                 const SizedBox(height: 24),
-                _buildWeeklySpendingChart(context, last7Days, dailyTotals, currencySymbol),
+                _buildWeeklySpendingChart(
+                    context, last7Days, dailyTotals, currencySymbol),
               ],
             ),
           );
@@ -95,7 +102,8 @@ class StatisticsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickStats(BuildContext context, double dailyAverage, double totalSpent, String currencySymbol) {
+  Widget _buildQuickStats(BuildContext context, double dailyAverage,
+      double totalSpent, String currencySymbol) {
     return Row(
       children: [
         Expanded(
@@ -121,7 +129,11 @@ class StatisticsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSpendingHighlights(BuildContext context, Transaction maxTransaction, Transaction minTransaction, String currencySymbol) {
+  Widget _buildSpendingHighlights(
+      BuildContext context,
+      Transaction maxTransaction,
+      Transaction minTransaction,
+      String currencySymbol) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -156,7 +168,11 @@ class StatisticsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWeeklySpendingChart(BuildContext context, List<DateTime> last7Days, Map<DateTime, double> dailyTotals, String currencySymbol) {
+  Widget _buildWeeklySpendingChart(
+      BuildContext context,
+      List<DateTime> last7Days,
+      Map<DateTime, double> dailyTotals,
+      String currencySymbol) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -175,7 +191,9 @@ class StatisticsScreen extends StatelessWidget {
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
-                  maxY: dailyTotals.values.reduce((a, b) => a > b ? a : b) * 1.2,
+                  maxY: dailyTotals.values.isNotEmpty
+                      ? dailyTotals.values.reduce((a, b) => a > b ? a : b) * 1.2
+                      : 1.0,
                   barTouchData: BarTouchData(
                     enabled: true,
                     touchTooltipData: BarTouchTooltipData(
@@ -197,8 +215,9 @@ class StatisticsScreen extends StatelessWidget {
                             return Padding(
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(
-                                DateFormat('E').format(last7Days[value.toInt()]),
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                last7Days[value.toInt()].toString(),
+                                style: const TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.bold),
                               ),
                             );
                           }
@@ -206,9 +225,12 @@ class StatisticsScreen extends StatelessWidget {
                         },
                       ),
                     ),
-                    leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
                   ),
                   borderData: FlBorderData(show: false),
                   barGroups: List.generate(
@@ -264,12 +286,16 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               title,
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey[600]),
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[600]),
             ),
             const SizedBox(height: 4),
             Text(
               '$currencySymbol${value.toStringAsFixed(2)}',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
+              style: TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.bold, color: color),
             ),
           ],
         ),
@@ -322,7 +348,8 @@ class _HighlightRow extends StatelessWidget {
         ),
         Text(
           '$currencySymbol${transaction.amount.abs().toStringAsFixed(2)}',
-          style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16),
+          style: TextStyle(
+              fontWeight: FontWeight.bold, color: color, fontSize: 16),
         ),
       ],
     );

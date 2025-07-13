@@ -5,10 +5,6 @@ import '../../state/budget_state.dart';
 import '../../models/transaction.dart';
 import '../../models/budget.dart';
 import '../../state/settings_state.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:intl/intl.dart';
-
-
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -24,14 +20,13 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _isExpense = true;
   BudgetCategory? _selectedCategory;
 
-final List<BudgetCategory> _categories = [
-  BudgetCategory(id: '1', name: 'Food', amount: 0),
-  BudgetCategory(id: '2', name: 'Transportation', amount: 0),
-  BudgetCategory(id: '3', name: 'Entertainment', amount: 0),
-  BudgetCategory(id: '4', name: 'Utilities', amount: 0),
-  BudgetCategory(id: '5', name: 'Other', amount: 0),
-];
-
+  final List<BudgetCategory> _categories = [
+    BudgetCategory(id: '1', name: 'Food', allocation: 0, spent: 0),
+    BudgetCategory(id: '2', name: 'Transportation', allocation: 0, spent: 0),
+    BudgetCategory(id: '3', name: 'Entertainment', allocation: 0, spent: 0),
+    BudgetCategory(id: '4', name: 'Utilities', allocation: 0, spent: 0),
+    BudgetCategory(id: '5', name: 'Other', allocation: 0, spent: 0),
+  ];
 
   @override
   void initState() {
@@ -56,7 +51,7 @@ final List<BudgetCategory> _categories = [
     }
   }
 
- Future<void> _showTransactionTypeDialog() async {
+  Future<void> _showTransactionTypeDialog() async {
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -65,7 +60,8 @@ final List<BudgetCategory> _categories = [
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.remove_circle_outline, color: Colors.red),
+              leading:
+                  const Icon(Icons.remove_circle_outline, color: Colors.red),
               title: const Text('Expense'),
               onTap: () {
                 setState(() => _isExpense = true);
@@ -74,7 +70,8 @@ final List<BudgetCategory> _categories = [
               },
             ),
             ListTile(
-              leading: const Icon(Icons.add_circle_outline, color: Colors.green),
+              leading:
+                  const Icon(Icons.add_circle_outline, color: Colors.green),
               title: const Text('Income'),
               onTap: () {
                 setState(() => _isExpense = false);
@@ -90,7 +87,7 @@ final List<BudgetCategory> _categories = [
 
   Future<void> _addTransaction() async {
     final currencySymbol = context.read<SettingsState>().currencySymbol;
-    
+
     return showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -110,7 +107,8 @@ final List<BudgetCategory> _categories = [
                     labelText: 'Amount',
                     prefixText: currencySymbol,
                   ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -120,7 +118,7 @@ final List<BudgetCategory> _categories = [
                     TextButton(
                       onPressed: () => _selectDate(context),
                       child: Text(
-                        DateFormat('MMM dd, yyyy').format(_selectedDate),
+                        '${_selectedDate.month}/${_selectedDate.day}/${_selectedDate.year}',
                       ),
                     ),
                   ],
@@ -170,22 +168,23 @@ final List<BudgetCategory> _categories = [
                     date: _selectedDate,
                     categoryId: _isExpense ? _selectedCategory!.id : null,
                   );
-                  
+
                   context.read<TransactionState>().addTransaction(transaction);
-                  
+
                   // Update budget balance and category
                   final budgetState = context.read<BudgetState>();
                   if (budgetState.budget != null) {
-                    final newBalance = budgetState.budget!.balance + (_isExpense ? -amount : amount);
+                    final newBalance = budgetState.budget!.balance +
+                        (_isExpense ? -amount : amount);
                     budgetState.updateBudget(budgetState.budget!.copyWith(
                       balance: newBalance,
                       lastUpdated: DateTime.now(),
                     ));
 
                     if (_isExpense && _selectedCategory != null) {
-                      budgetState.updateCategory(_selectedCategory!.id, _selectedCategory!.amount + amount);
+                      budgetState.updateCategoryAllocation(_selectedCategory!.id,
+                          _selectedCategory!.allocation + amount);
                     }
-
                   }
 
                   _descriptionController.clear();
@@ -205,9 +204,8 @@ final List<BudgetCategory> _categories = [
     );
   }
 
-
-
-  Widget _buildTransactionList(List<Transaction> transactions, String currencySymbol) {
+  Widget _buildTransactionList(
+      List<Transaction> transactions, String currencySymbol) {
     if (transactions.isEmpty) {
       return Center(
         child: Column(
@@ -275,7 +273,7 @@ final List<BudgetCategory> _categories = [
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    _formatDate(date),
+                    '${date.month}/${date.day}/${date.year}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -284,7 +282,7 @@ final List<BudgetCategory> _categories = [
                   Text(
                     'Total: $currencySymbol${dayTotal.abs().toStringAsFixed(2)}',
                     style: TextStyle(
-                      color: dayTotal >= 0 ? Colors.red : Colors.green,
+                      color: dayTotal >= 0 ? Colors.white : Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -292,59 +290,67 @@ final List<BudgetCategory> _categories = [
               ),
             ),
             ...dayTransactions.map((transaction) => Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Dismissible(
-                key: Key(transaction.id),
-                onDismissed: (direction) {
-                  context.read<TransactionState>().removeTransaction(transaction.id);
-                },
-                background: Container(
-                  color: Colors.red,
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  child: const Icon(Icons.delete, color: Colors.white),
-                ),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: transaction.amount < 0 
-                        ? Colors.green.withOpacity(0.2)
-                        : Colors.red.withOpacity(0.2),
-                    child: Icon(
-                      transaction.amount < 0 
-                          ? Icons.add_circle_outline
-                          : Icons.remove_circle_outline,
-                      color: transaction.amount < 0 ? Colors.green : Colors.red,
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Dismissible(
+                    key: Key(transaction.id),
+                    onDismissed: (direction) {
+                      context
+                          .read<TransactionState>()
+                          .removeTransaction(transaction.id);
+                    },
+                    background: Container(
+                      color: Colors.red,
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: transaction.amount < 0
+                            ? Colors.red.withOpacity(0.2)
+                            : Colors.green.withOpacity(0.2),
+                        child: Icon(
+                          transaction.amount < 0
+                              ? Icons.remove_circle_outline
+                              : Icons.add_circle_outline,
+                          color: transaction.amount < 0
+                              ? Colors.red
+                              : Colors.green,
+                        ),
+                      ),
+                      title: Text(
+                        transaction.description,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      subtitle:
+                          Text('${transaction.date.hour.toString().padLeft(2, '0')}:${transaction.date.minute.toString().padLeft(2, '0')}'),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '${transaction.amount < 0 ? '-' : '+'}$currencySymbol${transaction.amount.abs().toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: transaction.amount < 0
+                                  ? Colors.red
+                                  : Colors.green,
+                            ),
+                          ),
+                          Text(
+                            transaction.amount < 0 ? 'Expense' : 'Income',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  title: Text(
-                    transaction.description,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  subtitle: Text(DateFormat('HH:mm').format(transaction.date)),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${transaction.amount < 0 ? '+' : '-'}$currencySymbol${transaction.amount.abs().toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: transaction.amount < 0 ? Colors.green : Colors.red,
-                        ),
-                      ),
-                      Text(
-                        transaction.amount < 0 ? 'Income' : 'Expense',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )).toList(),
+                )),
             if (index < sortedDates.length - 1) const Divider(),
           ],
         );
@@ -352,31 +358,16 @@ final List<BudgetCategory> _categories = [
     );
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final yesterday = DateTime(now.year, now.month, now.day - 1);
-    final dateToCheck = DateTime(date.year, date.month, date.day);
-
-    if (dateToCheck == DateTime(now.year, now.month, now.day)) {
-      return 'Today';
-    } else if (dateToCheck == yesterday) {
-      return 'Yesterday';
-    } else {
-      return DateFormat('MMMM d, y').format(date);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final currencySymbol = context.watch<SettingsState>().currencySymbol;
-    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.transactions),
+            Text('Transactions'),
             Consumer<TransactionState>(
               builder: (context, state, _) => Text(
                 '${state.transactions.length} transactions',
@@ -392,7 +383,7 @@ final List<BudgetCategory> _categories = [
           if (state.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
-          
+
           if (state.error != null) {
             return Center(child: Text(state.error!));
           }

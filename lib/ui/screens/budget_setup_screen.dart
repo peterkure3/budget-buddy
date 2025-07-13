@@ -4,6 +4,8 @@ import '../../state/budget_state.dart';
 import '../../models/budget.dart';
 
 class BudgetSetupScreen extends StatefulWidget {
+  const BudgetSetupScreen({super.key});
+
   @override
   _BudgetSetupScreenState createState() => _BudgetSetupScreenState();
 }
@@ -16,8 +18,10 @@ class _BudgetSetupScreenState extends State<BudgetSetupScreen> {
   void initState() {
     super.initState();
     final budgetState = Provider.of<BudgetState>(context, listen: false);
-    _incomeController = TextEditingController(text: budgetState.income.toString());
-    _categories = List<BudgetCategory>.from(budgetState.budget?.categories ?? []);
+    _incomeController =
+        TextEditingController(text: budgetState.income.toString());
+    _categories =
+        List<BudgetCategory>.from(budgetState.budget?.categories ?? []);
   }
 
   @override
@@ -41,7 +45,7 @@ class _BudgetSetupScreenState extends State<BudgetSetupScreen> {
           ),
           SizedBox(height: 16),
           Text('Categories', style: Theme.of(context).textTheme.titleLarge),
-          ..._categories.map(_buildCategoryTile).toList(),
+          ..._categories.map(_buildCategoryTile),
           ListTile(
             leading: Icon(Icons.add),
             title: Text('Add Category'),
@@ -60,7 +64,8 @@ class _BudgetSetupScreenState extends State<BudgetSetupScreen> {
     final budgetState = Provider.of<BudgetState>(context, listen: false);
     return ListTile(
       title: Text(category.name),
-      subtitle: Text('${budgetState.currency}${category.amount.toStringAsFixed(2)}'),
+      subtitle:
+          Text('${budgetState.currency}${category.allocation.toStringAsFixed(2)}'),
       trailing: IconButton(
         icon: Icon(Icons.delete),
         onPressed: () => _removeCategory(category),
@@ -94,9 +99,11 @@ class _BudgetSetupScreenState extends State<BudgetSetupScreen> {
     });
   }
 
-  Future<BudgetCategory?> _showCategoryDialog([BudgetCategory? category]) async {
+  Future<BudgetCategory?> _showCategoryDialog(
+      [BudgetCategory? category]) async {
     final nameController = TextEditingController(text: category?.name ?? '');
-    final amountController = TextEditingController(text: category?.amount.toString() ?? '');
+    final amountController =
+        TextEditingController(text: category?.allocation.toString() ?? '');
     final budgetState = Provider.of<BudgetState>(context, listen: false);
 
     return showDialog<BudgetCategory>(
@@ -134,7 +141,8 @@ class _BudgetSetupScreenState extends State<BudgetSetupScreen> {
                 BudgetCategory(
                   id: category?.id ?? DateTime.now().toString(),
                   name: name,
-                  amount: amount,
+                  allocation: amount,
+                  spent: 0,
                 ),
               );
             },
@@ -144,11 +152,11 @@ class _BudgetSetupScreenState extends State<BudgetSetupScreen> {
     );
   }
 
-    void _saveBudget(BudgetState budgetState) {
-        final income = double.tryParse(_incomeController.text) ?? 0;
-        budgetState.saveBudget(income, _categories);
-        Navigator.of(context).pop();
-    }
+  void _saveBudget(BudgetState budgetState) {
+    final income = double.tryParse(_incomeController.text) ?? 0;
+    budgetState.saveBudget(income, _categories);
+    Navigator.of(context).pop();
+  }
 
   @override
   void dispose() {
